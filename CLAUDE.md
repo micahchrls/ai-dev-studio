@@ -37,5 +37,5 @@ Path: `~/ai-dev-studio/vault/`. Rules for working in it are in `vault/CLAUDE.md`
 
 ## Model use (Pro plan)
 
-- Default: Sonnet with `/advisor opus` (trial; see vault ADR studio-0006). Use plan mode for multi-file changes.
+- Default: Sonnet with `/advisor opus` (one-week trial; decision record ADR studio-0006 in the vault). Use plan mode for multi-file changes.
 - `/clear` between unrelated tasks; check `/usage` when a session feels expensive.

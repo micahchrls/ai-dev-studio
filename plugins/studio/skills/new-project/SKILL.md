@@ -25,6 +25,7 @@ Run these and stop with a clear message if one fails:
 - `<studio root>/projects/<name>` must not exist.
 - `gh auth status` (needed for GitHub Issues later; if not signed in, tell the user to run `gh auth login` themselves and continue).
 - Stack tools: `laravel --version` and `composer --version` (laravel); `node --version` and `npm --version` (nextjs, expo).
+- **laravel only: PostgreSQL.** Check that a server is reachable (`pg_isready`, or a running Docker container). If none is, ask the user: start one (for example `docker run -d --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17`, or Laravel Herd/DBngin), or scaffold with `--database=sqlite` now and switch later. Tests use SQLite in memory either way, so CI doesn't need Postgres.
 
 ## 3. Run the official starter
 
@@ -48,7 +49,7 @@ Then trim `CLAUDE.md`: if the starter generated long guidelines (Laravel Boost d
 
 - If the starter did not initialise git, run `git init -b main`.
 - Make one local commit: `chore: scaffold <name> from <starter> with studio overlay`.
-- **Ask before publishing.** Creating the GitHub repo is the user's call: offer `gh repo create <name> --public --source . --remote origin` and only run it on an explicit yes. Pushing `main` is the user's action (the studio git guard blocks pushes to `main`), so give them the exact command instead: `git push -u origin main`.
+- **Ask before publishing.** Creating the GitHub repo is the user's call: offer `gh repo create <name> --public --source . --remote origin` and only run it on an explicit yes. Right after it is created, add the label the planning skills apply: `gh label create ready-for-agent --description "Spec or ticket ready for an agent" --color 0E8A16`. Pushing `main` is the user's action (the studio git guard blocks pushes to `main`), so give them the exact command instead: `git push -u origin main`.
 
 ## 6. Vault note
 

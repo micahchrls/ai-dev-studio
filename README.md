@@ -53,7 +53,23 @@ The build loop uses the [superpowers](https://github.com/obra/superpowers) plugi
 - **TypeScript flagship:** Next.js 16.
 - **Mobile:** Expo, as a client of a Laravel API.
 
-Each choice is recorded with its research and trade-offs as an architecture decision record.
+## Key decisions
+
+Each was researched against current official docs and logged as an architecture decision record in the studio's private knowledge vault. The short version:
+
+| # | Decision | Why |
+|---|---|---|
+| 1 | Ship the shared workflow as a plugin in this public repo | Only `CLAUDE.md` crosses a repo boundary; a plugin is versioned and installable |
+| 2 | Keep the knowledge vault inside the studio folder as a separate private repo | One root folder, without publishing private notes |
+| 3 | Sync the vault with private git only | Free, full history, every AI edit is a reviewable diff |
+| 4 | superpowers for the build loop + five vendored planning skills | Avoids duplicate and contradictory skills; pinned against upstream churn |
+| 5 | Specs and tickets in GitHub Issues | A public spec → ticket → PR → review trail |
+| 6 | Sonnet with an Opus advisor on the Pro plan (one-week trial) | Opus at high effort is the costliest setting; measured with `/usage` |
+| 7 | Laravel by default, one Next.js flagship | Build from the deepest skill, close the TypeScript gap |
+| 8 | A thin `new-project` command over official starters | One command to start, no custom generator to maintain |
+| 9 | Two-layer git safety: deny rules + a parsing hook | Prefix rules miss wrapped commands; auto mode allows pushes to `main` |
+
+No MCP servers are configured globally yet: the docs prefer a CLI (`gh`) where one exists, and Laravel projects get Laravel Boost's MCP server per project. Servers get added when a real need appears.
 
 ## Use it yourself
 
@@ -62,7 +78,7 @@ claude plugin marketplace add <owner>/ai-dev-studio
 claude plugin install studio@ai-dev-studio
 ```
 
-Then, in Claude Code: `/studio:new-project`. Copy the permission rules you want from [`settings/settings.example.json`](settings/settings.example.json) into your own `~/.claude/settings.json`.
+Then, in Claude Code: `/studio:new-project`. After cloning this repo, enable its pre-commit guard with `git config core.hooksPath .githooks`. Copy the permission rules you want from [`settings/settings.example.json`](settings/settings.example.json) into your own `~/.claude/settings.json`.
 
 ## Status
 

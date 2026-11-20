@@ -19,6 +19,8 @@ Changes from upstream:
 - Removed the `agents/openai.yaml` files (Codex-specific).
 - `grill-with-docs/SKILL.md`: skill references renamed to the plugin namespace
   (`studio:grilling`, `studio:domain-modeling`).
+- `grilling/SKILL.md`: description narrowed so it only runs from `grill-with-docs`, leaving plain
+  "grill me" requests to the user's own one-question-at-a-time `grill-me` skill.
 
 Why vendored rather than installed from the upstream plugin: upstream renamed or deleted
 more than a dozen skills during 2026, and the full plugin duplicates skills already covered by
