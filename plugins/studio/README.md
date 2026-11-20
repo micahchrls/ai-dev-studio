@@ -17,7 +17,7 @@ The planning skills are vendored from [mattpocock/skills](https://github.com/mat
 ## Install
 
 ```bash
-claude plugin marketplace add <owner>/ai-dev-studio
+claude plugin marketplace add micahchrls/ai-dev-studio
 claude plugin install studio@ai-dev-studio
 ```
 

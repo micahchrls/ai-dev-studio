@@ -74,7 +74,7 @@ No MCP servers are configured globally yet: the docs prefer a CLI (`gh`) where o
 ## Use it yourself
 
 ```bash
-claude plugin marketplace add <owner>/ai-dev-studio
+claude plugin marketplace add micahchrls/ai-dev-studio
 claude plugin install studio@ai-dev-studio
 ```
 
