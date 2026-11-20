@@ -1,0 +1,9 @@
+# Each app is its own repo; the vault is a separate private repo.
+projects/*
+!projects/README.md
+vault/
+
+# Local / personal
+.claude/settings.local.json
+CLAUDE.local.md
+.DS_Store

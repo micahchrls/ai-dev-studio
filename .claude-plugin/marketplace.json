@@ -1,0 +1,16 @@
+{
+  "name": "ai-dev-studio",
+  "owner": {
+    "name": "ai-dev-studio"
+  },
+  "metadata": {
+    "description": "A solo developer's AI-assisted software studio: one shared Claude Code workflow for every project."
+  },
+  "plugins": [
+    {
+      "name": "studio",
+      "source": "./plugins/studio",
+      "description": "Studio workflow: one-command project scaffolding, spec-to-tickets planning skills and a git safety hook."
+    }
+  ]
+}
