@@ -7,30 +7,105 @@ the normal permission flow continue (this hook never auto-approves anything).
 
 This is the second safety layer. The first is the deny/ask rules in
 ~/.claude/settings.json, which only match literal command prefixes; this hook also
-catches variants such as `git -C dir push --force` or `cd x && git reset --hard`.
+catches variants such as `git -C dir push --force`, `cd x && git reset --hard`,
+`bash -c '...'`, `eval ...`, `$(...)` and heredocs fed to a shell.
+
+Parsing rules:
+- Commands are split on unquoted ; & | ( ) newlines, $( and backticks. Text inside
+  quotes is data, so `git commit -m "wip; git clean -fd"` is one git commit.
+- `$(...)` and backticks inside double quotes still run, so their contents are checked.
+- Heredoc bodies are data (`cat > f <<EOF`) unless the heredoc feeds a shell
+  (`bash <<EOF`), in which case the body is checked as commands.
+- `bash|sh|zsh -c '<script>'` and `eval <args>` are checked recursively.
 
 Compatible with the macOS system Python (3.9). Standard library only.
+Tests: python3 test_git_guard.py (cases in test_cases.json, shared with the studio map page).
 """
 import json
 import re
-import shlex
 import subprocess
 import sys
 
 PROTECTED_BRANCHES = {"main", "master"}
 # Global git options that consume the following token as their value.
 GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
-SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\||\n|\$\(|`|\(|\)")
-
-
-def tokenize(segment):
-    try:
-        return shlex.split(segment, posix=True)
-    except ValueError:
-        return segment.split()
-
-
 WRAPPERS = {"command", "sudo", "env", "time", "nohup", "exec", "xargs"}
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
+SEPARATORS = set(";&|()\n`")
+HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+MAX_DEPTH = 4
+
+
+def segments(cmd):
+    """Split a shell command into simple commands, each a list of tokens (quote-aware)."""
+    segs, cur = [], []
+    tok, has, q = "", False, None
+    i, n = 0, len(cmd)
+
+    def end_token():
+        nonlocal tok, has
+        if tok or has:
+            cur.append(tok)
+        tok, has = "", False
+
+    def end_segment():
+        nonlocal cur
+        end_token()
+        if cur:
+            segs.append(cur)
+        cur = []
+
+    while i < n:
+        c = cmd[i]
+        if q == "'":
+            if c == "'":
+                q = None
+            else:
+                tok += c
+        elif q == '"':
+            if c == '"':
+                q = None
+            elif c == "\\" and i + 1 < n:
+                i += 1
+                tok += cmd[i]
+            elif c == "$" and cmd[i + 1:i + 2] == "(":
+                j, depth = i + 2, 1
+                while j < n and depth:
+                    if cmd[j] == "(":
+                        depth += 1
+                    elif cmd[j] == ")":
+                        depth -= 1
+                    j += 1
+                segs.extend(segments(cmd[i + 2:j - 1]))
+                i = j
+                continue
+            elif c == "`":
+                j = cmd.find("`", i + 1)
+                j = n if j < 0 else j
+                segs.extend(segments(cmd[i + 1:j]))
+                i = j + 1
+                continue
+            else:
+                tok += c
+        elif c in "'\"":
+            q, has = c, True
+        elif c == "\\" and i + 1 < n:
+            i += 1
+            if cmd[i] != "\n":
+                tok += cmd[i]
+        elif c == "$" and cmd[i + 1:i + 2] == "(":
+            end_segment()
+            i += 2
+            continue
+        elif c in SEPARATORS:
+            end_segment()
+        elif c.isspace():
+            end_token()
+        else:
+            tok += c
+        i += 1
+    end_segment()
+    return segs
 
 
 def command_index(tokens):
@@ -44,23 +119,68 @@ def command_index(tokens):
     return None
 
 
-def git_invocations(command):
+def strip_heredocs(command):
+    """Drop heredoc bodies that are plain data; keep bodies that feed a shell."""
+    lines = command.split("\n")
+    out, i = [], 0
+    while i < len(lines):
+        line = lines[i]
+        out.append(line)
+        i += 1
+        m = HEREDOC.search(line)
+        if not m:
+            continue
+        consumer = ""
+        before = segments(line[:m.start()])
+        if before:
+            k = command_index(before[-1])
+            if k is not None:
+                consumer = before[-1][k].rsplit("/", 1)[-1]
+        delim, dash = m.group(3), m.group(1) == "-"
+        body = []
+        while i < len(lines):
+            end = lines[i].lstrip("\t") if dash else lines[i]
+            i += 1
+            if end == delim:
+                break
+            body.append(lines[i - 1])
+        if consumer in SHELLS:
+            out.extend(body)
+    return "\n".join(out)
+
+
+def git_invocations(command, depth=0):
     """Yield (git_dir, subcommand, args) for every git call in a shell command."""
-    for segment in SEGMENT_SPLIT.split(command):
-        tokens = tokenize(segment)
+    if depth > MAX_DEPTH:
+        return
+    for tokens in segments(strip_heredocs(command)):
         i = command_index(tokens)
-        if i is not None and tokens[i].rsplit("/", 1)[-1] == "git":
-            j, git_dir = i + 1, None
-            while j < len(tokens) and tokens[j].startswith("-"):
-                opt = tokens[j]
-                if opt in GIT_OPTS_WITH_VALUE and j + 1 < len(tokens):
-                    if opt == "-C":
-                        git_dir = tokens[j + 1]
-                    j += 2
-                else:
-                    j += 1
-            if j < len(tokens):
-                yield git_dir, tokens[j], tokens[j + 1:]
+        if i is None:
+            continue
+        word, rest = tokens[i].rsplit("/", 1)[-1], tokens[i + 1:]
+        if word in SHELLS and "-c" in rest:
+            k = rest.index("-c")
+            if k + 1 < len(rest):
+                for inv in git_invocations(rest[k + 1], depth + 1):
+                    yield inv
+            continue
+        if word == "eval":
+            for inv in git_invocations(" ".join(rest), depth + 1):
+                yield inv
+            continue
+        if word != "git":
+            continue
+        j, git_dir = i + 1, None
+        while j < len(tokens) and tokens[j].startswith("-"):
+            opt = tokens[j]
+            if opt in GIT_OPTS_WITH_VALUE and j + 1 < len(tokens):
+                if opt == "-C":
+                    git_dir = tokens[j + 1]
+                j += 2
+            else:
+                j += 1
+        if j < len(tokens):
+            yield git_dir, tokens[j], tokens[j + 1:]
 
 
 def short_flags(args):
@@ -84,7 +204,7 @@ def current_branch(cwd, git_dir):
         return ""
 
 
-def check_push(args, cwd, git_dir):
+def check_push(args, branch_of):
     flags = short_flags(args)
     for a in args:
         if a.startswith("--force") or a in ("--mirror", "--delete", "--prune"):
@@ -100,16 +220,16 @@ def check_push(args, cwd, git_dir):
         if dest in PROTECTED_BRANCHES:
             return "push to protected branch '%s'" % dest
     if not refspecs:
-        branch = current_branch(cwd, git_dir)
+        branch = branch_of()
         if branch in PROTECTED_BRANCHES:
             return "push while on protected branch '%s'" % branch
     return None
 
 
-def check(sub, args, cwd, git_dir):
+def check(sub, args, branch_of):
     flags = short_flags(args)
     if sub == "push":
-        return check_push(args, cwd, git_dir)
+        return check_push(args, branch_of)
     if sub == "reset" and "--hard" in args:
         return "git reset --hard discards uncommitted work"
     if sub == "clean" and ("f" in flags or "--force" in args):
@@ -142,7 +262,7 @@ def main():
         return 0
     cwd = data.get("cwd")
     for git_dir, sub, args in git_invocations(command):
-        reason = check(sub, args, cwd, git_dir)
+        reason = check(sub, args, lambda: current_branch(cwd, git_dir))
         if reason:
             sys.stderr.write(
                 "Blocked by studio git guard: %s.\n"
