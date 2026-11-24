@@ -1,7 +1,13 @@
 {
   "name": "studio",
-  "version": "0.1.0",
-  "description": "Studio workflow: one-command project scaffolding (/studio:new-project), spec-to-tickets planning skills and a git safety hook.",
+  "version": "0.2.0",
+  "description": "Studio workflow: one-command project scaffolding (/studio:new-project), spec-to-tickets planning skills, a studio-researcher agent and a git safety hook.",
   "license": "MIT",
-  "keywords": ["sdlc", "workflow", "scaffolding", "git-safety"]
+  "keywords": [
+    "sdlc",
+    "workflow",
+    "scaffolding",
+    "git-safety",
+    "research"
+  ]
 }

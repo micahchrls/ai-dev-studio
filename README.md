@@ -9,7 +9,7 @@ It is built on a simple belief backed by current research: **AI speeds up delive
 | Look at | What it shows |
 |---|---|
 | [`docs/sdlc-checklist.md`](docs/sdlc-checklist.md) | The lifecycle every project follows, from idea to retrospective, with the human's and the AI's role in each phase |
-| [`plugins/studio/`](plugins/studio) | A Claude Code plugin: skills, a git safety hook and project templates, installable by anyone |
+| [`plugins/studio/`](plugins/studio) | A Claude Code plugin: skills, a research agent, a git safety hook and project templates, installable by anyone |
 | [`plugins/studio/hooks/git_guard.py`](plugins/studio/hooks/git_guard.py) | A PreToolUse hook that blocks force-pushes, pushes to `main`, `reset --hard` and other destructive git commands, including ones hidden in `bash -c`, `eval`, `$(...)` or a heredoc fed to a shell, while ignoring git text that is only data. [45 regression cases](plugins/studio/hooks/test_cases.json) |
 | [`plugins/studio/skills/new-project/`](plugins/studio/skills/new-project) | `/studio:new-project`: scaffolds from the official Laravel, Next.js or Expo starter, then layers on CI, Dependabot, a PR template and agent rules |
 | [`CLAUDE.md`](CLAUDE.md) | Studio-wide instructions every project session inherits, kept short on purpose |
